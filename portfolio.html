@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
+    <meta name="generator" content="Hugo 0.83.1">
+    <title>Muntas | Cross-chain Portfolio Tracker</title>
+
+    <!-- Bootstrap core CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+    <script src="https://unpkg.com/moralis/dist/moralis.js"></script>
+    <!-- Bootstrap core CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-wEmeIV1mKuiNpC+IOBjI7aAzPcEZeedi5yW5f2yOq55WWLwNGmvvx4Um1vskeMj0" crossorigin="anonymous">
+
+    <style>
+      .bd-placeholder-img {
+        font-size: 1.125rem;
+        text-anchor: middle;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        user-select: none;
+      }
+
+      @media (min-width: 768px) {
+        .bd-placeholder-img-lg {
+          font-size: 3.5rem;
+        }
+      }
+    </style>
+
+    
+  </head>
+  <body>
+    
+<header>
+    <!--
+  <div class="navbar navbar-light" style="background-color: #e3f2fd;">
+    <div class="container">
+      <a href="#" class="navbar-brand d-flex align-items-center">
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" aria-controls="navbarHeader" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+    </div>
+  </div> -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDarkDropdown" aria-controls="navbarNavDarkDropdown" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNavDarkDropdown">
+        <ul class="navbar-nav">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDarkDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Muntas
+            </a>
+            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="navbarDarkDropdownMenuLink">
+              <li><a class="dropdown-item" href="#">Address 1</a></li>
+              <li><a class="dropdown-item" href="#">Address 2</a></li>
+              <li><a id="logout" class="dropdown-item" href="#">Logout</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<main>
+
+  <section class="container">
+    <div class="d-flex flex-md-row-reverse my-3">
+        <a class="btn btn-outline-secondary btn-sm disabled" href="#" aria-disabled="true">
+        <span id="logged_in_address" class="fs-7">Logged In: </span></a>
+    </div>
+    <a href="/" class="d-flex align-items-center text-dark text-decoration-none">
+        <span class="fs-4">Assets</span>
+    </a>
+    
+    <div class="row">
+      <div id="portfolio_canvas" class="col-md-8 my-2" style="min-height: 400px"></div>
+      <div class="col-md-4 py-4 text-center">
+        <ul class="list-group">
+          <li class="list-group-item active" aria-disabled="true">Ethereum: Aggregated Wallets</li>
+          <li class="list-group-item fs-8">1. 0x651cc85c0847482aa427f4eb35c887ee48e9b156</li>
+          <li class="list-group-item fs-8">2. 0x438cc85c0847482aa427f4eb35c887ee48e9b423</li>
+        </ul>
+        <button type="button" class="my-4 btn btn-danger">Add New Wallet</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="my-3 p-3 bg-body rounded shadow-sm" id="assets">
+        <h6 class="border-bottom pb-2 mb-0">Asset Details</h6>
+        
+    </div>
+    </div>
+    
+  </section>
+  
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-p34f1UUtsS3wqzfto5wAAmdvj+osOnFyQFpp4Ua3gs/ZVWx6oOypYoCJhGGScy+8" crossorigin="anonymous"></script>
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/exporting.js"></script>
+
+<script src="./js/main.js"></script>
+<script>
+    document.getElementById("logout").onclick = logout;
+
+    showTooltips = () => {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    }
+    
+    init = async () => {
+        const user = await getUser()
+        //console.log(user.get("address2chain"))
+        document.getElementById("logged_in_address").innerHTML += user.get("ethAddress")
+        points = await getTokens(user.get("ethAddress"))
+        console.log(points)
+        drawChart(points)
+    }
+
+    init()
+
+    getTokens = async (address) => {
+
+        count = 1
+        chart_data = [] 
+        promises = []
+        response = await fetch(`https://api.covalenthq.com/v1/1/address/${address}/balances_v2/?`)
+        //response = await fetch('./data.json')
+        response = await response.json()
+        console.log(response)
+        tokens = response.data.items
+        number_of_tokens = tokens.length
+
+        for(const token of tokens){
+          ticker = token.contract_ticker_symbol
+                lc_response = await fetch(`https://api.lunarcrush.com/v2?data=assets&key=olr3cu6lnc897ezr37jpo&symbol=${ticker}&time_series_indicators=average_sentiment&data_points=0`)
+                lc_response = await lc_response.json()
+                //console.log(lc_response.data[0].average_sentiment)
+                balance = token.quote_rate * (token.balance/(10 ** token.contract_decimals))
+                element = `<div class="d-flex text-muted pt-2">
+                                <img class="bd-placeholder-img flex-shrink-0 me-2 rounded" width="32" height="30" src="${token.logo_url}" />
+                                <div class="pb-3 mb-0 small lh-sm ${count != number_of_tokens? 'border-bottom': ''} w-100">
+                                <div class="d-flex justify-content-between py-2">
+                                    <strong class="text-gray-dark">${token.contract_name}</strong>
+                                    <span class="text-gray-dark">${token.balance/ (10 ** token.contract_decimals)} ${token.contract_ticker_symbol} ~ ${balance.toFixed(2)}</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span data-bs-toggle="tooltip" data-bs-placement="left" title="A percentage/score of the overall +vity or -vity of what people are saying online wrt the token.">Social Sentiment: ${lc_response.data[0].average_sentiment} 🤩</span>
+                                    <a href="#">Details</a>
+                                </div>
+                                </div>
+                            </div>`
+                document.getElementById("assets").innerHTML += element
+                chart_data.push({'name': token.contract_name, 'y': parseFloat(balance.toFixed(2))})
+                //console.log(chart_data)
+                count++
+        }
+
+        
+    showTooltips()
+    return chart_data;
+    }
+
+    pieColors =  (num) => {
+      var colors = [],
+          base = Highcharts.getOptions().colors[6],
+          i;
+
+      for (i = 0; i < num; i += 1) {
+          colors.push(Highcharts.color(base).brighten((i - 3) / 7).get());
+      }
+      return colors;
+  };
+  
+    drawChart = (data) => {
+
+    Highcharts.chart('portfolio_canvas', {
+        chart: {
+          plotBackgroundColor: null,
+          plotBorderWidth: null,
+          plotShadow: false,
+          type: 'pie'
+        },
+        title: {
+          text: ''
+        },
+        accessibility: {
+            point: {
+              valueSuffix: '%'
+            }
+        },
+        plotOptions: {
+          pie: {
+            allowPointSelect: true,
+            cursor: 'pointer',
+            colors: ['#4572A7', '#AA4643', '#89A54E', '#80699B', '#3D96AE',
+                    '#DB843D', '#92A8CD', '#A47D7C', '#B5CA92'],
+            dataLabels: {
+                enabled: true,
+                format: '<b>{point.name}</b>: {point.percentage:.1f} %'
+            },
+            showInLegend: true
+          }
+        },
+        series: [{
+          name: 'Balance',
+          colorByPoint: true,
+          data: data
+        }],
+        exporting: {
+        buttons: {
+          contextButton: {
+                align: 'left',
+                x: 0
+            }
+        }
+    }
+      });
+}
+</script>
+  </body>
+</html>
