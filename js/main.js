@@ -16,7 +16,7 @@ loginMetamask = async () => {
     try {
         user = await Moralis.Web3.authenticate();
         if (! user.get('address2chain')){
-            user.set('address2chain', {'eth': user.get("ethAddress")})
+            user.set('address2chain', {'eth': [user.get("ethAddress")]})
             await user.save()
         }
         if (user) window.location.href = '/portfolio.html';
@@ -31,5 +31,29 @@ logout = async () => {
         const user = Moralis.User.current();  // this will now be null
         if (!user) window.location.href = '/index.html';
       });
+}
+
+addAddress = async (chain, address) => {
+    try {
+        const user = await getUser()
+        if (user) {
+            if (chain in user.get('address2chain')){
+                wallets = user.get("address2chain")
+                if (! wallets[chain].includes(address) ) {
+                    wallets[chain].push(address)
+                    user.set('address2chain', wallets)
+                }
+            }
+            else {
+                wallets = user.get("address2chain")
+                wallets[chain] = [address]
+                user.set('address2chain', wallets)
+            }
+            await user.save()
+        }
+
+    } catch (error) {
+        console.log(error);
+    }
 }
 

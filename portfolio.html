@@ -82,21 +82,50 @@
     <div class="row">
       <div id="portfolio_canvas" class="col-md-8 my-2" style="min-height: 400px"></div>
       <div class="col-md-4 py-4 text-center">
-        <ul class="list-group">
-          <li class="list-group-item active" aria-disabled="true">Ethereum: Aggregated Wallets</li>
-          <li class="list-group-item fs-8">1. 0x651cc85c0847482aa427f4eb35c887ee48e9b156</li>
-          <li class="list-group-item fs-8">2. 0x438cc85c0847482aa427f4eb35c887ee48e9b423</li>
-        </ul>
-        <button type="button" class="my-4 btn btn-danger">Add New Wallet</button>
+        <div id="wallets_div"></div>
+        <button type="button" class="my-4 btn btn-danger" data-bs-toggle="modal" data-bs-target="#exampleModal">Add New Wallet</button>
       </div>
     </div>
     <div class="row">
       <div class="my-3 p-3 bg-body rounded shadow-sm" id="assets">
         <h6 class="border-bottom pb-2 mb-0">Asset Details</h6>
         
-    </div>
+      </div>
     </div>
     
+
+
+    <!-- Add Wallet Modal -->
+    <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="exampleModalLabel">New Address</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form>
+              <div class="mb-3">
+                <label for="addr_chain" class="col-form-label">Blockchain:</label>
+                <select class="form-select" id="addr_chain" aria-label="Default select example">
+                  <option selected>Open this select menu</option>
+                  <option value="eth">Ethereum</option>
+                  <option value="bsc">Binance Smart Chain</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="message-text" class="col-form-label">Address:</label>
+                <input class="form-control" id="addr_wallet"/>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-dark" id="add_address">Connect</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
   
 </main>
@@ -108,6 +137,20 @@
 <script src="./js/main.js"></script>
 <script>
     document.getElementById("logout").onclick = logout;
+    const modal = new bootstrap.Modal(document.getElementById('exampleModal'));
+
+    _addAddress = async() => {
+      
+      chain = document.getElementById("addr_chain").value
+      wallet = document.getElementById("addr_wallet").value
+      console.log(chain)
+      console.log(wallet)
+      await addAddress(chain, wallet)
+      modal.hide()
+      init()
+    }
+
+    document.getElementById("add_address").onclick = _addAddress;
 
     showTooltips = () => {
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
@@ -120,53 +163,82 @@
         const user = await getUser()
         //console.log(user.get("address2chain"))
         document.getElementById("logged_in_address").innerHTML += user.get("ethAddress")
-        points = await getTokens(user.get("ethAddress"))
+        points = await getTokens()
+        //points = await getTokens('0x1Db3439a222C519ab44bb1144fC28167b4Fa6EE6')
         console.log(points)
         drawChart(points)
     }
 
     init()
 
-    getTokens = async (address) => {
+    displayWallets = async (chain) => {
+      const user = await getUser()
+      addresses = user.get("address2chain")[chain]
 
-        count = 1
-        chart_data = [] 
-        promises = []
-        response = await fetch(`https://api.covalenthq.com/v1/1/address/${address}/balances_v2/?`)
-        //response = await fetch('./data.json')
-        response = await response.json()
-        console.log(response)
-        tokens = response.data.items
-        number_of_tokens = tokens.length
+      blockchain = chain == 'eth' ? 'Ethereum' : 'Binance Smart Chain';
+      wallets_display = `<ul class="list-group"> <li class="list-group-item active" aria-disabled="true">${blockchain}: Aggregated Wallets</li>`
+      for (i = 0; i < addresses.length; i++){
+        wallets_display += `<li class="list-group-item fs-8">${i+1}. ${addresses[i]}</li>`
+      }
+      wallets_display += `</ul>`
+      document.getElementById("wallets_div").innerHTML = wallets_display
+    }
 
-        for(const token of tokens){
-          ticker = token.contract_ticker_symbol
-                lc_response = await fetch(`https://api.lunarcrush.com/v2?data=assets&key=olr3cu6lnc897ezr37jpo&symbol=${ticker}&time_series_indicators=average_sentiment&data_points=0`)
-                lc_response = await lc_response.json()
-                //console.log(lc_response.data[0].average_sentiment)
-                balance = token.quote_rate * (token.balance/(10 ** token.contract_decimals))
-                element = `<div class="d-flex text-muted pt-2">
-                                <img class="bd-placeholder-img flex-shrink-0 me-2 rounded" width="32" height="30" src="${token.logo_url}" />
-                                <div class="pb-3 mb-0 small lh-sm ${count != number_of_tokens? 'border-bottom': ''} w-100">
-                                <div class="d-flex justify-content-between py-2">
-                                    <strong class="text-gray-dark">${token.contract_name}</strong>
-                                    <span class="text-gray-dark">${token.balance/ (10 ** token.contract_decimals)} ${token.contract_ticker_symbol} ~ ${balance.toFixed(2)}</span>
-                                </div>
-                                <div class="d-flex justify-content-between">
-                                    <span data-bs-toggle="tooltip" data-bs-placement="left" title="A percentage/score of the overall +vity or -vity of what people are saying online wrt the token.">Social Sentiment: ${lc_response.data[0].average_sentiment} 🤩</span>
-                                    <a href="#">Details</a>
-                                </div>
-                                </div>
-                            </div>`
-                document.getElementById("assets").innerHTML += element
-                chart_data.push({'name': token.contract_name, 'y': parseFloat(balance.toFixed(2))})
-                //console.log(chart_data)
-                count++
+    getTokens = async () => {
+
+        const user = await getUser()
+        //console.log(user.get("address2chain"))
+        eth_addresses = user.get("address2chain").eth
+        displayWallets('eth')
+        chart_data = []
+
+        for (address of eth_addresses){
+          
+          count = 1
+          response = await fetch(`https://api.covalenthq.com/v1/1/address/${address}/balances_v2/?`)
+          //response = await fetch('./data.json')
+          response = await response.json()
+          console.log(response)
+          tokens = response.data.items
+          number_of_tokens = tokens.length
+
+          for(const token of tokens){
+            ticker = token.contract_ticker_symbol
+                try {
+                      lc_response = await fetch(`https://api.lunarcrush.com/v2?data=assets&key=olr3cu6lnc897ezr37jpo&symbol=${ticker}&time_series_indicators=average_sentiment&data_points=0`)
+                      lc_response = await lc_response.json()
+                      //console.log(lc_response.data[0].average_sentiment)
+                      balance = token.quote_rate * (token.balance/(10 ** token.contract_decimals))
+                      element = `<div class="d-flex text-muted pt-2">
+                                      <img class="bd-placeholder-img flex-shrink-0 me-2 rounded" width="32" height="30" src="${token.logo_url}" />
+                                      <div class="pb-3 mb-0 small lh-sm ${count != number_of_tokens? 'border-bottom': ''} w-100">
+                                      <div class="d-flex justify-content-between py-2">
+                                          <span>
+                                            <strong class="text-gray-dark">${token.contract_name}</strong>
+                                            <small>(${address})</small>
+                                          </span>
+                                          <span class="text-gray-dark">${(token.balance/ (10 ** token.contract_decimals)).toFixed(2)} ${token.contract_ticker_symbol} ~ $${balance.toFixed(2)}</span>
+                                      </div>
+                                      <div class="d-flex justify-content-between">
+                                          <span data-bs-toggle="tooltip" data-bs-placement="left" title="A percentage/score of the overall +vity or -vity of what people are saying online wrt the token.">Social Sentiment: ${lc_response.data[0].average_sentiment} 🤩</span>
+                                          <a href="#">Details</a>
+                                      </div>
+                                      </div>
+                                  </div>`
+                      document.getElementById("assets").innerHTML += element
+                      chart_data.push({'name': token.contract_name, 'y': parseFloat(balance.toFixed(2))})
+                      //console.log(chart_data)
+                }
+                catch(e) {
+                  console.log(e)
+                  continue
+                }
+            count++
+            if (count > 10) break;
+          }
         }
-
-        
-    showTooltips()
-    return chart_data;
+        showTooltips()
+        return chart_data;
     }
 
     pieColors =  (num) => {
