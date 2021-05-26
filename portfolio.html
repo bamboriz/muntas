@@ -83,7 +83,9 @@
       <div id="portfolio_canvas" class="col-md-8 my-2" style="min-height: 400px"></div>
       <div class="col-md-4 py-4 text-center">
         <div id="wallets_div"></div>
-        <button type="button" class="my-4 btn btn-danger" data-bs-toggle="modal" data-bs-target="#exampleModal">Add New Wallet</button>
+  
+        <p id="chain_balance" class="h3 my-4">Balance: $0</p>
+        <button type="button" class="my-3 btn btn-danger" data-bs-toggle="modal" data-bs-target="#exampleModal">Add New Wallet</button>
       </div>
     </div>
     <div class="row">
@@ -191,6 +193,7 @@
         eth_addresses = user.get("address2chain").eth
         displayWallets('eth')
         chart_data = []
+        total_balance = 0
 
         for (address of eth_addresses){
           
@@ -209,6 +212,7 @@
                       lc_response = await lc_response.json()
                       //console.log(lc_response.data[0].average_sentiment)
                       balance = token.quote_rate * (token.balance/(10 ** token.contract_decimals))
+                      total_balance += balance
                       element = `<div class="d-flex text-muted pt-2">
                                       <img class="bd-placeholder-img flex-shrink-0 me-2 rounded" width="32" height="30" src="${token.logo_url}" />
                                       <div class="pb-3 mb-0 small lh-sm ${count != number_of_tokens? 'border-bottom': ''} w-100">
@@ -238,7 +242,17 @@
           }
         }
         showTooltips()
+        showBalance(total_balance)
         return chart_data;
+    }
+
+    showBalance = (balance) => {
+
+      const options = { style: 'currency', currency: 'USD' };
+      const numberFormat2 = new Intl.NumberFormat('en-US', options);
+      balance = numberFormat2.format(balance)
+      text = `Balance: ${balance}`
+      document.getElementById("chain_balance").innerHTML = text
     }
 
     pieColors =  (num) => {
